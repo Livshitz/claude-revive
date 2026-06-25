@@ -1,6 +1,8 @@
 name: publish
 
-# Publishes to npm when you cut a GitHub Release (tag should match package.json version).
+# Publishes to public npm when you cut a GitHub Release (tag should match package.json version).
+# The npm token is NOT a per-repo secret — it's pulled at publish time from secrets-broker's secrets
+# store. The only GitHub secret is BROKER_API_KEY (the secrets-broker access key).
 on:
   release:
     types: [published]
@@ -21,6 +23,16 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
+      - name: Pull NPM_TOKEN from secrets-broker secrets store
+        env:
+          BROKER_API_KEY: ${{ secrets.BROKER_API_KEY }}
+        run: |
+          TOKEN=$(curl -fsS -H "Authorization: Bearer $BROKER_API_KEY" \
+            "https://secrets-broker.example/api/apps/REDACTED-APP-ID/env/NPM_TOKEN?environment=prod" \
+            | jq -r '.value')
+          [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || { echo "::error::could not fetch NPM_TOKEN from secrets-broker"; exit 1; }
+          echo "::add-mask::$TOKEN"
+          echo "NODE_AUTH_TOKEN=$TOKEN" >> "$GITHUB_ENV"
       - run: npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}
