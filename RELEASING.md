@@ -7,7 +7,7 @@ The npm token is **not** a per-repo secret — CI pulls it at publish time from 
 ## One-time setup
 
 ```bash
-gh secret set BROKER_API_KEY --repo Livshitz/claude-resurrect   # the secrets-broker access key
+gh secret set BROKER_API_KEY --repo Livshitz/claude-revive   # the secrets-broker access key
 ```
 (`NPM_TOKEN` already lives in secrets-broker; rotate it there, never here. npm provenance also needs the repo + package public.)
 
