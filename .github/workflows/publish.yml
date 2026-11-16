@@ -1,8 +1,9 @@
 name: publish
 
 # Publishes to public npm when you cut a GitHub Release (tag should match package.json version).
-# The npm token is NOT a per-repo secret — it's pulled at publish time from secrets-broker's secrets
-# store. The only GitHub secret is BROKER_API_KEY (the secrets-broker access key).
+# The npm token is NOT stored per-repo — it's fetched at publish time from a scoped,
+# read-only secrets broker. The endpoint URL and its credential live in GitHub secrets
+# (NPM_TOKEN_URL, NPM_BROKER_SECRET), never in this file, so it's safe in a public repo.
 on:
   release:
     types: [published]
@@ -23,16 +24,17 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm run build
-      - name: Pull NPM_TOKEN from secrets-broker secrets store
+      - name: Fetch npm token from secrets broker
         env:
-          BROKER_API_KEY: ${{ secrets.BROKER_API_KEY }}
+          TOKEN_URL: ${{ secrets.NPM_TOKEN_URL }}
+          APP_SECRET: ${{ secrets.NPM_BROKER_SECRET }}
         run: |
-          TOKEN=$(curl -fsS -H "Authorization: Bearer $BROKER_API_KEY" \
-            "https://secrets-broker.example/api/apps/REDACTED-APP-ID/env/NPM_TOKEN?environment=prod" \
-            | jq -r '.value')
-          [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || { echo "::error::could not fetch NPM_TOKEN from secrets-broker"; exit 1; }
-          echo "::add-mask::$TOKEN"
-          echo "NODE_AUTH_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          token=$(curl -sS -f -H "x-app-secret: $APP_SECRET" "$TOKEN_URL" | jq -r '.value')
+          if [ -z "$token" ] || [ "$token" = "null" ]; then
+            echo "::error::Failed to fetch npm token from secrets broker"; exit 1
+          fi
+          echo "::add-mask::$token"
+          echo "NODE_AUTH_TOKEN=$token" >> "$GITHUB_ENV"
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ env.NODE_AUTH_TOKEN }}

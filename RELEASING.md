@@ -2,14 +2,11 @@
 
 Publishing is automated via GitHub Actions (`.github/workflows/publish.yml`) — there is no manual `npm publish`.
 
-The npm token is **not** a per-repo secret — CI pulls it at publish time from **secrets-broker's secrets store** (`NPM_TOKEN`, app-scoped). The only GitHub secret is `BROKER_API_KEY`.
+The npm token is **not** a per-repo secret — CI fetches it at publish time from a scoped, read-only secrets broker. The repo holds only two GitHub secrets: `NPM_TOKEN_URL` (the broker endpoint) and `NPM_BROKER_SECRET` (its credential).
 
 ## One-time setup
 
-```bash
-gh secret set BROKER_API_KEY --repo Livshitz/claude-revive   # the secrets-broker access key
-```
-(`NPM_TOKEN` already lives in secrets-broker; rotate it there, never here. npm provenance also needs the repo + package public.)
+Set `NPM_TOKEN_URL` and `NPM_BROKER_SECRET` as repository secrets (rotate the token in the broker, never here). npm provenance also needs the repo + package public.
 
 ## Cut a release
 
